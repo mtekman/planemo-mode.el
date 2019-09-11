@@ -1,5 +1,6 @@
 ;;
 
+
 (defun insert-param-boolean ())
 (defun insert-param-data ())
 (defun insert-param-float ())
@@ -13,7 +14,58 @@
 (defun insert-test ())
 (defun insert-test-interactive ())
 (defun insert-conditional ())
-(defun insert-param ())
+
+
+(defun insert-param (&optional type)
+  "Checks whether it is in an input or output parent.
+Checks whether the conditional-mode is active, and if so prompts to insert when"
+  (interactive
+   (list (completing-read "Type: " '("boolean" "data" "integer" "float" "text" "selection"))))
+  (funcall (intern (concat "insert-param-" type))))
+
+(defun find-valid-parent (&optional point)
+  "Jumps up an XML from a point to find a valid parent tag."
+  (interactive "d")
+  (let ((parent-tag nil))
+    (save-excursion
+      (while (not (member parent-tag '("inputs" "tests" "test" "outputs")))
+        (nxml-up-element)
+        (nxml-backward-element)
+        (let ((beg (+ 1 (point)))
+              (end (progn (re-search-forward "<\\([^> ]+\\)")
+                          (match-end 0))))
+          (setq parent-tag (buffer-substring-no-properties beg end))))
+      parent-tag)))
+            
+
+(defun insert-param-boolean-input (is-conditional)
+  "Insert a boolean param in an input section, with WHEN parameters if IS-CONDITIONAL."
+  
+
+(defun insert-param-boolean (&optional main-tag is-conditional)
+  (interactive (list (find-valid-parent)
+                     ;;(bound-and-true-p conditional-mode)))
+                     t))
+  (cond ((string= main-tag "inputs")
+         (insert-param-boolean-input is-conditional))
+        ((string= main-tag "outputs")
+         (throw-error "Can't make param in output."))
+        ((string= main-tag "test")
+         (insert-param-boolean-test (gather-names "boolean")))
+        ((string= main-tag "tests")
+         (progn (insert-test)
+                (insert-param-boolean-test
+                 (gather-names "boolean"))))))
+
+
+
+(defun my-test (&optional tmp)
+  (interactive
+   (list (completing-read "Type: " '("boolean" "data" "integer" "float" "text" "selection"))))
+  (if tmp
+      (message (concat "WORD " tmp))
+    (message "NO ARG")))
+
 (defun insert-section ())
 (defun insert-when ())
 
@@ -60,7 +112,6 @@
     (define-key map (kbd "C-t s") 'insert-param-selection)
     map))
 
-b
 ;; Commands
 (defun macrofy-selection (macroname beg end)
   "Convert selection to a macro and replace selection with expand token. Adds to the <macro/> section. "
