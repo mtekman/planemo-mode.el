@@ -15,7 +15,6 @@
 (defun insert-test-interactive ())
 (defun insert-conditional ())
 
-
 (defun insert-param (&optional type)
   "Checks whether it is in an input or output parent.
 Checks whether the conditional-mode is active, and if so prompts to insert when"
@@ -36,26 +35,25 @@ Checks whether the conditional-mode is active, and if so prompts to insert when"
                           (match-end 0))))
           (setq parent-tag (buffer-substring-no-properties beg end))))
       parent-tag)))
-            
 
-(defun insert-param-boolean-input (is-conditional)
-  "Insert a boolean param in an input section, with WHEN parameters if IS-CONDITIONAL."
-  
+(defun insert-param-boolean-input (is-conditional &optional name label &rest optional checked help truevalue falsevalue)
+  "Insert bare minimum boolean param in an input section, with WHEN parameters if IS-CONDITIONAL."
+  (interactive (list (read-string "name: ")
+                     (read-string "label: ")))
+  (insert "<param name=\"%s\" type=\"boolean\" label=\"%s\" />")
+  (search-backward "<param")
+  (param
 
-(defun insert-param-boolean (&optional main-tag is-conditional)
-  (interactive (list (find-valid-parent)
-                     ;;(bound-and-true-p conditional-mode)))
-                     t))
-  (cond ((string= main-tag "inputs")
-         (insert-param-boolean-input is-conditional))
-        ((string= main-tag "outputs")
-         (throw-error "Can't make param in output."))
-        ((string= main-tag "test")
-         (insert-param-boolean-test (gather-names "boolean")))
-        ((string= main-tag "tests")
-         (progn (insert-test)
-                (insert-param-boolean-test
-                 (gather-names "boolean"))))))
+
+
+(defun insert-param-boolean (&optional main-tag)
+  (interactive (list (find-valid-parent)))
+  (cond ((string= main-tag "inputs") (insert-param-boolean-input))
+        ((string= main-tag "outputs") (throw-error "Can't make param in output."))
+        ((string= main-tag "test") (insert-param-boolean-test (gather-names "boolean")))
+        ((string= main-tag "tests") (progn (insert-test)
+                                           (insert-param-boolean-test
+                                            (gather-names "boolean"))))))
 
 
 
@@ -75,42 +73,95 @@ Checks whether the conditional-mode is active, and if so prompts to insert when"
   :init-value nil
   :lighter "Galaxy "
   :keymap
-  ;; Repeatable elements get modes
-  '(([M-c] . insert-conditional)
-    ([M-s] . insert-section)
-    ([M-p] . insert-param)
-    ([M-d] . insert-data)
-    ([M-t] . insert-test)))
-
-(define-minor-mode conditional-mode
-  "This mode exists in galaxy-mode. Adds a <when value='' /> for every valid param value."
-  :init-value nil
-  :lighter "Conditional "
-  :keymap
-  '(([M-p] . insert-param)
-    ([M-w] . insert-when)))
-
-(define-minor-mode param-selection-mode
-  "This mode can overlay param-mode"
-  :init-value nil
-  :lighter "Selection "
-  :keymap
-  '(([M-S-o] . insert-option-nowhen)
-    ([M-o] . insert-option)))
-
-(define-minor-mode param-mode
-  "This mode can overlay conditional-mode"
-  :init-value nil
-  :lighter "Param "
-  :keymap
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-t b") 'insert-conditional)
+    (define-key map (kbd "C-t b") 'insert-section)
+    (define-key map (kbd "C-t b") 'insert-data)
+    (define-key map (kbd "C-t b") 'insert-test)))
+    (define-key map (kbd "C-t b") 'insert-param)
     (define-key map (kbd "C-t b") 'insert-param-boolean)
     (define-key map (kbd "C-t i") 'insert-param-integer)
     (define-key map (kbd "C-t f") 'insert-param-float)
     (define-key map (kbd "C-t t") 'insert-param-text)
     (define-key map (kbd "C-t d") 'insert-param-data)
     (define-key map (kbd "C-t s") 'insert-param-selection)
+
+
+
+(define-minor-mode conditional-mode
+  "This mode nests the param-mode"
+  :init-value nil
+  :lighter "Conditional "
+  :keymap
+  (let ((map (make-sparse-keymap)))
+    ;; Modes below inherit these
+    (define-key map (kbd "v") 'insert-when)
+    (define-key map (kbd "d") 'delete-when)))
+  
+
+(define-minor-mode param-mode
+  "This mode nests the other param-mode-*"
+  :init-value nil
+  :lighter "Param "
+  :keymap
+  (let ((map (make-sparse-keymap)))
+    ;; Modes below inherit these
+    (define-key map (kbd "q") 'quit-mode)
+    (define-key map (kbd "o") 'edit-param-toggle-optional)
+    (define-key map (kbd "h") 'edit-param-help)
+    (define-key map (kbd "a") 'edit-param-argument)
+    (define-key map (kbd "n") 'edit-param-name)
+    (define-key map (kbd "l") 'edit-param-label)
     map))
+
+(define-minor-mode sanitizer-mode)
+
+(define-minor-mode param-mode-data)
+
+(define-minor-mode param-mode-text
+  "Overlays param-mode"
+  :init-value nil
+  :lighter "text "
+  :keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "t v") 'edit-param-value)
+    (define-key map (kbd "t s") 'edit-or-insert-sanitizer)
+    map))
+
+(define-minor-mode param-mode-numeric
+  "This mode can overlay conditional-mode"
+  :init-value nil
+  :lighter "numeric "
+  :keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "n t") 'edit-param-numeric-toggle-type)
+    (define-key map (kbd "n m") 'edit-param-min)
+    (define-key map (kbd "n x") 'edit-param-max)
+    (define-key map (kbd "n v") 'edit-param-value)
+    map))
+
+
+(define-minor-mode param-mode-selection
+  "This mode can overlay conditional-mode"
+  :init-value nil
+  :lighter "selection "
+  :keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "s o") 'insert-option) ;; adds when via prompt if conditional detected
+    (define-key map (kbd "s d") 'delete-option) ;; if when not empty, leaves it and blanks out name
+    map))
+
+(define-minor-mode param-mode-boolean
+  "This mode can overlay conditional-mode"
+  :init-value nil
+  :lighter "boolean "
+  :keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "b c") 'edit-param-toggle-checked)
+    (define-key map (kbd "b t") 'edit-param-truevalue)
+    (define-key map (kbd "b f") 'edit-param-falsevalue)
+    map))
+
 
 ;; Commands
 (defun macrofy-selection (macroname beg end)
