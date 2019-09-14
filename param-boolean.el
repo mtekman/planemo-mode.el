@@ -11,15 +11,19 @@
 
 (defun insert-param-boolean (&optional main-tag)
   (interactive (list (find-valid-parent)))
-  (jump-to-param-end)
-  (insert "\n")
+  (when (or (string= "<" (string (char-after)))
+            (not (isin-between-tags)))
+    (insert "\n"))
+  (jump-to-param-start)
+  (execute-kbd-macro (read-kbd-macro "TAB"))
+  (execute-kbd-macro (read-kbd-macro "<up>"))
   (execute-kbd-macro (read-kbd-macro "TAB"))
   (cond ((string= main-tag "inputs") (call-interactively 'insert-param-boolean-input))
         ((string= main-tag "outputs") (throw-error "Can't make param in output."))
         ((string= main-tag "test") (insert-param-boolean-test (gather-names "boolean")))
-        ((string= main-tag "tests") (progn (insert-test)
-                                           (insert-param-boolean-test
-                                            (gather-names "boolean"))))))
+        ((string= main-tag "tests")
+         (progn (insert-test)
+                (insert-param-boolean-test (gather-names "boolean"))))))
 
 (defun insert-param-boolean-input (&optional isin-conditional label name)
   "Insert bare minimum boolean param in an input section, with WHEN parameters if IS-CONDITIONAL."
@@ -30,36 +34,11 @@
   (jump-to-start-of-tag))
 ;;  (param-mode-boolean))
 
+
 (defun edit-param-toggle-checked (&optional point)
   (interactive "P")
-  (save-excursion
-    (jump-to-start-of-tag)
-    (let* ((tags (get-current-subtags))
-           (has-checked (member "checked" tags))
-           (is-true nil)
-           (just-inserted-true nil))
-      (if has-checked
-        (setq is-true
-              (progn (re-search-forward "checked=\"\\([^\"]+\\)\"")
-                     (string= "true" (match-string-no-properties 1))))
-        ;; Create checked=true
-        (jump-to-start-of-tag)
-        (search-forward "label=")
-        (backward-char 6)
-        (insert "checked=\"true\" ")
-        (setq just-inserted-true t))
-      ;; At this point there is a checked
-      (unless just-inserted-true
-        (jump-to-start-of-tag)
-        (search-forward "checked=")
-        (let ((beg (mark))
-              (end (search-forward "\" ")))
-          (if is-true
-              ;; Make it not checked by deleting it completely
-              (delete-region (search-backward "checked") end)
-            ;; Otherwise add a true
-            (delete-region beg end)
-            (insert "checked=\"true\"")))))))
+  (edit-param-toggle "checked" "true"))
+
 
 (defun edit-param-toggle-truevalue (&optional point) )
 (defun edit-param-toggle-falsevalue (&optional point) )

@@ -85,6 +85,7 @@
   :lighter "selection "
   :keymap
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-t s m") 'edit-param-selection-toggle-multiple)
     (define-key map (kbd "C-t s o") 'insert-option) ;; adds when via prompt if conditional detected
     (define-key map (kbd "C-t s d") 'delete-option) ;; if when not empty, leaves it and blanks out name
     map))
