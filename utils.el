@@ -26,6 +26,9 @@
               (end (progn (re-search-forward starting-tags-regex)
                           (match-end 0))))
           (setq parent-tag (buffer-substring-no-properties beg end))
+          (when (string= parent-tag "tool")
+            ;; DEBUG THIS
+            (break))
           (unless (string= parent-tag "param")
             (cl-pushnew parent-tag tags-found)))))
     (string= "conditional" (car (last tags-found)))))
@@ -44,33 +47,61 @@
           (setq parent-tag (buffer-substring-no-properties beg end))))
       parent-tag)))
 
-(defun jump-to-start-of-tag ()
+(defun nothing-before-or-after (&optional point)
+  "Concats the before after and next, and checks for characters"
+  (interactive "P")
+  (let ((text (string-trim
+               (string (char-before point)
+                       (char-after point)
+                       (char-after (+ 1 point))))))
+    (= (length text) 0)))
+
+(defun place-at-good-insertion-point ()
+  "Place cursor into right position for parameter insertion"
+  (cond
+   ;; When at the start of an existing tag, insert before
+   ((nothing-before-or-after (point)) nil)
+   ((or (string= "<" (string (char-after)))
+         (not (isin-between-tags)))
+    (progn (insert "\n")
+           (execute-kbd-macro (read-kbd-macro "TAB"))
+           (execute-kbd-macro (read-kbd-macro "<up>"))
+           (execute-kbd-macro (read-kbd-macro "TAB"))))))
+
+(defun jump-to-tag-start ()
   "Moves cursor to start of any tag element."
   (save-current-buffer
     ; Saving needed, otherwise jumping doesn't work on loose buffer.
     (let ((charbefore (string (char-before)))
           (charfirst (string (char-after)))
           (charsecond (string (char-after (+ 1 (point))))))
-      (when (and (string= charfirst "<") (not (string= charsecond "/")))
-        ;; The very first "<param" - if (nxml-up-element) is called here
-        ;; it jumps out of the section.
-        (forward-char 2))
-      (when (string= charbefore ">")
-        ;; If right at the end of the tag, (nxml-up-element) also jumps out.
-        (backward-char 2))
-      (nxml-up-element)
-      (nxml-backward-element))))
+      ;; If nothing before or after, do nothing!
+      (unless (and (member charbefore '("\n" " "))
+                   (member charfirst '("\n" " ")))
+        (when (and (string= charfirst "<") (not (string= charsecond "/")))
+          ;; The very first "<param" - if (nxml-up-element) is called here
+          ;; it jumps out of the section.
+          (forward-char 2))
+        (when (string= charbefore ">")
+          ;; If right at the end of the tag, (nxml-up-element) also jumps out.
+          (backward-char 2))
+        (nxml-up-element)
+        (nxml-backward-element)))))
 
 (defun jump-to-param-start ()
-  (jump-to-start-of-tag)
-  (let* ((beg (point))
-         (end (search-forward " "))
-         (text (buffer-substring-no-properties
-                (+ 1 beg) (- end 1))))
-    (cond ((string= text "param") (search-backward "<param "))
-          ((string= text "option") (search-backward "<param "))
-          (t (progn (search-forward "<param ")
-                    (search-backward "<"))))))
+  (when (jump-to-tag-start)
+    (let* ((beg (point))
+           (end (search-forward " "))
+           (text (buffer-substring-no-properties
+                  (+ 1 beg) (- end 1))))
+      (cond ((string= text "param") (search-backward "<param "))
+            ((string= text "option") (search-backward "<param "))
+            ((string-match "inputs ?" text)
+             (progn (when (member (string (char-after beg)) '("\n" " "))
+                      (insert "\n"))
+                    (execute-kbd-macro (read-kbd-macro "TAB"))))
+            (t (progn (search-forward "<param ")
+                      (search-backward "<")))))))
 
 (defun jump-to-param-end () (jump-to-param-start)(nxml-forward-element))
 
@@ -78,7 +109,7 @@
   "Returns all subtags within a tag at point"
   (interactive "P")
   (save-excursion
-    (jump-to-start-of-tag)
+    (jump-to-tag-start)
     (let ((beg (point))
           (end (search-forward ">"))
           (revtags nil))

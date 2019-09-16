@@ -12,7 +12,7 @@
               (progn (re-search-forward (format "%s=\"\\([^\"]+\\)\"" tagname))
                      (string= tagval (match-string-no-properties 1))))
         ;; - Create checked=true
-        (jump-to-start-of-tag)
+        (jump-to-tag-start)
         (search-forward "label=")
         (backward-char 6)
         (insert (format "%s=\"%s\" " tagname tagval))
@@ -20,7 +20,7 @@
       ;; -------
       ;; At this point there is a tagname=(true|false)
       (unless just-inserted-true
-        (jump-to-start-of-tag)
+        (jump-to-tag-start)
         (search-forward (format "%s=\"" tagname))
         (let* ((end (search-forward "\""))
                (beg (search-backward (format "%s=\"" tagname))))
@@ -29,7 +29,6 @@
           ;; Insert new
           (insert (format "%s=\"%s\"" tagname
                           (if is-true "false" "true"))))))))
-
 
 (defun edit-param-toggle-optional (&optional point)
   (interactive "P")

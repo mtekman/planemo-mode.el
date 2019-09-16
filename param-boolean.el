@@ -11,13 +11,7 @@
 
 (defun insert-param-boolean (&optional main-tag)
   (interactive (list (find-valid-parent)))
-  (when (or (string= "<" (string (char-after)))
-            (not (isin-between-tags)))
-    (insert "\n"))
-  (jump-to-param-start)
-  (execute-kbd-macro (read-kbd-macro "TAB"))
-  (execute-kbd-macro (read-kbd-macro "<up>"))
-  (execute-kbd-macro (read-kbd-macro "TAB"))
+  (place-at-good-insertion-point)  
   (cond ((string= main-tag "inputs") (call-interactively 'insert-param-boolean-input))
         ((string= main-tag "outputs") (throw-error "Can't make param in output."))
         ((string= main-tag "test") (insert-param-boolean-test (gather-names "boolean")))
@@ -25,13 +19,14 @@
          (progn (insert-test)
                 (insert-param-boolean-test (gather-names "boolean"))))))
 
+
 (defun insert-param-boolean-input (&optional isin-conditional label name)
   "Insert bare minimum boolean param in an input section, with WHEN parameters if IS-CONDITIONAL."
   (interactive (list (isin-conditional)
                      (read-string "Label: ")
                      (read-string "Cheetah Name: ")))
   (insert (format "<param name=\"%s\" type=\"boolean\" label=\"%s\" />" name label))
-  (jump-to-start-of-tag))
+  (jump-to-tag-start))
 ;;  (param-mode-boolean))
 
 
