@@ -1,0 +1,9 @@
+
+<tool id="blank" >
+    <inputs>
+        
+        <conditional name="blah" >
+            
+        </conditional>
+    </inputs>
+</tool>
